@@ -38,6 +38,9 @@ namespace Kolibri
         private static extern uint GetLastError();
 
         [DllImport("kernel32.dll")]
+        private static extern IntPtr LocalFree(IntPtr hMem);
+
+        [DllImport("kernel32.dll")]
         private static extern IntPtr GlobalFree(IntPtr hMem);
         
         [DllImport("kernel32.dll")]
@@ -160,7 +163,8 @@ namespace Kolibri
                             }
                             finally
                             {
-                                Marshal.FreeHGlobal(source);
+                                // Marshal.StringToHGlobalUni actually allocates with LocalAlloc, thus we should use LocalFree to free the memory.
+                                LocalFree(source);
                             }
                         }
                         catch (OutOfMemoryException)
