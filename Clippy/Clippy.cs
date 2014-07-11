@@ -163,7 +163,7 @@ namespace Kolibri
                             }
                             finally
                             {
-                                // Marshal.StringToHGlobalUni actually allocates with LocalAlloc, thus we should use LocalFree to free the memory.
+                                // Marshal.StringToHGlobalUni actually allocates with LocalAlloc, thus we should use LocalFree to free the memory, not Marshal.FreeHGlobal!
                                 LocalFree(source);
                             }
                         }
