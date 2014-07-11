@@ -53,16 +53,16 @@ namespace Kolibri
         [DllImport("kernel32.dll", EntryPoint = "CopyMemory", SetLastError = false)]
         public static extern void CopyMemory(IntPtr dest, IntPtr src, uint count);
 
-        //// TODO: switch to non msvcrt based copy solution
-        //[DllImport("msvcrt.dll", EntryPoint = "memcpy", CallingConvention = CallingConvention.Cdecl, SetLastError = false)]
-        //private static extern IntPtr memcpy(IntPtr dest, IntPtr src, UIntPtr count);
-        
         [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool OpenClipboard(IntPtr hWndNewOwner);
+
         [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool CloseClipboard();
+
         [DllImport("user32.dll")]
-        private static extern bool SetClipboardData(uint uFormat, IntPtr data);
+        private static extern IntPtr SetClipboardData(uint uFormat, IntPtr data);
 
         public enum ResultCode
         {
@@ -82,9 +82,11 @@ namespace Kolibri
         public class Result
         {
             public ResultCode ResultCode { get; set; }
+
             public uint LastError { get; set; }
 
             public bool OK {
+                // ReSharper disable once RedundantNameQualifier
                 get { return Clippy.ResultCode.Success == ResultCode; }
             }
         }
@@ -146,12 +148,12 @@ namespace Kolibri
                                 }
                                 finally
                                 {
-                                    GlobalUnlock(target);
+                                    var ignore = GlobalUnlock(target);
                                 }
 
                                 // ReSharper disable once InconsistentNaming
                                 const int CF_UNICODETEXT = 13;
-                                if (SetClipboardData(CF_UNICODETEXT, hGlobal))
+                                if (SetClipboardData(CF_UNICODETEXT, hGlobal).ToInt64() != 0)
                                 {
                                     // IMPORTANT: SetClipboardData takes ownership of hGlobal upon success.
                                     hGlobal = IntPtr.Zero;
@@ -164,7 +166,7 @@ namespace Kolibri
                             finally
                             {
                                 // Marshal.StringToHGlobalUni actually allocates with LocalAlloc, thus we should use LocalFree to free the memory, not Marshal.FreeHGlobal!
-                                LocalFree(source);
+                                var ignore = LocalFree(source);
                             }
                         }
                         catch (OutOfMemoryException)
@@ -179,7 +181,7 @@ namespace Kolibri
                         {
                             if (hGlobal != IntPtr.Zero)
                             {
-                                GlobalFree(hGlobal);
+                                var ignore = GlobalFree(hGlobal);
                             }
                         }
                     }
