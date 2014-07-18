@@ -25,6 +25,7 @@ THE SOFTWARE.
 
 using System;
 using System.Runtime.InteropServices;
+using System.Text;
 
 // ReSharper disable once CheckNamespace
 namespace Kolibri
@@ -94,6 +95,37 @@ namespace Kolibri
         [STAThread]
         public static Result PushStringToClipboard(string message)
         {
+            var isAscii = (message != null && (message == Encoding.ASCII.GetString(Encoding.ASCII.GetBytes(message))));
+            if (isAscii)
+            {
+                return PushUnicodeStringToClipboard(message);
+            }
+            else
+            {
+                return PushAnsiStringToClipboard(message);
+            }
+        }
+
+        [STAThread]
+        public static Result PushUnicodeStringToClipboard(string message)
+        {
+            return __PushStringToClipboard(message, CF_UNICODETEXT);
+        }
+
+        [STAThread]
+        public static Result PushAnsiStringToClipboard(string message)
+        {
+            return __PushStringToClipboard(message, CF_TEXT);
+        }
+
+        // ReSharper disable InconsistentNaming
+        const uint CF_TEXT = 1;
+        const uint CF_UNICODETEXT = 13;
+        // ReSharper restore InconsistentNaming
+
+        [STAThread]
+        private static Result __PushStringToClipboard(string message, uint format)
+        {
             try
             {
                 try
@@ -110,10 +142,21 @@ namespace Kolibri
 
                     try
                     {
-                        // ReSharper disable once InconsistentNaming
-                        const int SIZE_OF_CHAR = 2;
+                        uint sizeOfChar;
+                        switch (format)
+                        {
+                            case CF_TEXT:
+                                sizeOfChar = 1;
+                                break;
+                            case CF_UNICODETEXT:
+                                sizeOfChar = 2;
+                                break;
+                            default:
+                                throw new Exception("Not Reachable");
+                        }
+
                         var characters = (uint)message.Length;
-                        var bytes = (characters + 1) * SIZE_OF_CHAR;
+                        uint bytes = (characters + 1) * sizeOfChar;
 
                         // ReSharper disable once InconsistentNaming
                         const int GMEM_MOVABLE = 0x0002;
@@ -133,7 +176,19 @@ namespace Kolibri
                         {
                             // IMPORTANT: Marshal.StringToHGlobalUni allocates using LocalAlloc with LMEM_FIXED.
                             //            Note that LMEM_FIXED implies that LocalLock / LocalUnlock is not required.
-                            var source = Marshal.StringToHGlobalUni(message);
+                            IntPtr source;
+                            switch (format)
+                            {
+                                case CF_TEXT:
+                                    source = Marshal.StringToHGlobalAnsi(message);
+                                    break;
+                                case CF_UNICODETEXT:
+                                    source = Marshal.StringToHGlobalUni(message);
+                                    break;
+                                default:
+                                    throw new Exception("Not Reachable");
+                            }
+                            
                             try
                             {
                                 var target = GlobalLock(hGlobal);
@@ -151,9 +206,7 @@ namespace Kolibri
                                     var ignore = GlobalUnlock(target);
                                 }
 
-                                // ReSharper disable once InconsistentNaming
-                                const int CF_UNICODETEXT = 13;
-                                if (SetClipboardData(CF_UNICODETEXT, hGlobal).ToInt64() != 0)
+                                if (SetClipboardData(format, hGlobal).ToInt64() != 0)
                                 {
                                     // IMPORTANT: SetClipboardData takes ownership of hGlobal upon success.
                                     hGlobal = IntPtr.Zero;

@@ -60,17 +60,21 @@ namespace ClippyTest
         }
 
         [TestMethod]
-        public void PushAnyStringToClipboardWillBeUnicode()
+        public void PushAsciiStringToClipboardWillBeAscii()
         {
             var p = "asdf";
             var result = Clippy.PushStringToClipboard(p);
             Assert.IsNotNull(result);
             Assert.IsTrue(result.OK);
-            Assert.IsTrue(Clipboard.ContainsData(DataFormats.UnicodeText));
+            Assert.IsTrue(Clipboard.ContainsData(DataFormats.Text));
             Assert.IsTrue(Clipboard.GetText() == p);
+        }
 
-            p = "áéíóúýðæö";
-            result = Clippy.PushStringToClipboard(p);
+        [TestMethod]
+        public void PushNonAsciiStringToClipboardWillBeUnicode()
+        {
+            var p = "áéíóúýðæö";
+            var result = Clippy.PushStringToClipboard(p);
             Assert.IsNotNull(result);
             Assert.IsTrue(result.OK);
             Assert.IsTrue(Clipboard.ContainsData(DataFormats.UnicodeText));
